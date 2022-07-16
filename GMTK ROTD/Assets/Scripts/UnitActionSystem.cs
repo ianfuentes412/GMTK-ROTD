@@ -2,10 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
 public class UnitActionSystem : MonoBehaviour
 {
-    
+    public static UnitActionSystem Instance { get; private set; }
+
+    public event EventHandler OnSelectedUnitChange;
 
     [SerializeField] private Unit selectedUnit;
     [SerializeField] private LayerMask unitLayerMask;
@@ -24,6 +27,16 @@ public class UnitActionSystem : MonoBehaviour
         {
             RightClick(context);
         };
+
+        if (Instance != null)
+        {
+            Debug.LogError("There's more than on UnitActionSystem! " + transform + "-" + Instance);
+            Destroy(gameObject);
+
+            return;
+        }
+
+        Instance = this; 
     }
     private void Update()
     {
@@ -35,7 +48,7 @@ public class UnitActionSystem : MonoBehaviour
 
         if (context.started)
         {
-            HandleUnitSelection();
+            TryHandleUnitSelection();
         }
     }
 
@@ -48,16 +61,30 @@ public class UnitActionSystem : MonoBehaviour
         }
     }
 
-    private void HandleUnitSelection()
+    private bool TryHandleUnitSelection()
     {
         Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
         if (Physics.Raycast(ray, out RaycastHit raycastHit, float.MaxValue, unitLayerMask))
         {
             if (raycastHit.transform.TryGetComponent<Unit>(out Unit unit))
             {
-                selectedUnit = unit;
+                
+                SetSelectedUnit(unit);
+                return true;
             }
         }
+        return false;
+    }
+
+    private void SetSelectedUnit(Unit unit)
+    {
+        selectedUnit = unit;
+        OnSelectedUnitChange?.Invoke(this, EventArgs.Empty);
+    }
+
+    public Unit GetSelectedUnit()
+    {
+        return selectedUnit;
     }
 
     private void OnEnable()
